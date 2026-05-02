@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+dist/
+build/
+
+# Virtual environment
+.venv/
+
+# IDE
+.idea/
+.vscode/
+
+# Claude
+.claude/
+
+# Data files (datasets, database)
+data/*.db
+data/*.sqlite
+datasets/
+
+# Models (large binary files, not source)
+models/all-MiniLM-L6-v2/
+models/clip-vit-base-patch32/
+models/paraphrase-MiniLM-L3-v2/
+models/lambdamart_ranker.pkl
+
+# Generated reports & evaluation results
+results/
+
+# Numpy files
+*.npy
+*.npz
+
+# GitHub config (not needed in source)
+.github/
+
+# Windows
+Thumbs.db
+*.bat
+*.ps1
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
