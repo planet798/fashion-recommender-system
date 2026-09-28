@@ -11,24 +11,22 @@ def leave_last_out_split(
     min_interactions: int = 3,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
-    Split user-item interactions chronologically.
+    Temporal leave-last-out split.
 
-    For every eligible user:
+    For each user:
 
         history[:-2] -> train
         history[-2]  -> validation
         history[-1]  -> test
-
-    Users with fewer than `min_interactions` interactions are removed.
     """
 
-    required_columns = {
+    required = {
         user_col,
         item_col,
         timestamp_col,
     }
 
-    missing = required_columns - set(interactions.columns)
+    missing = required - set(interactions.columns)
 
     if missing:
         raise ValueError(
@@ -42,7 +40,6 @@ def leave_last_out_split(
 
     data = interactions.copy()
 
-    # Remove invalid rows.
     data = data.dropna(
         subset=[
             user_col,
@@ -51,44 +48,83 @@ def leave_last_out_split(
         ]
     )
 
-    # Only retain users with enough historical behaviour.
-    user_counts = data.groupby(user_col)[item_col].transform("size")
+    counts = (
+        data.groupby(user_col)[item_col]
+        .transform("size")
+    )
 
     data = data[
-        user_counts >= min_interactions
+        counts >= min_interactions
     ].copy()
 
-    # Stable chronological sorting.
     data = data.sort_values(
-        by=[user_col, timestamp_col],
+        [user_col, timestamp_col],
         kind="stable",
     )
 
-    # Latest interaction -> test.
-    test_indices = (
-        data.groupby(user_col, sort=False)
-        .tail(1)
-        .index
+    rank_from_end = (
+        data.groupby(user_col)
+        .cumcount(ascending=False)
     )
 
-    test = data.loc[test_indices]
+    test = data[
+        rank_from_end == 0
+    ].copy()
 
-    remaining = data.drop(index=test_indices)
+    validation = data[
+        rank_from_end == 1
+    ].copy()
 
-    # Second latest interaction -> validation.
-    validation_indices = (
-        remaining.groupby(user_col, sort=False)
-        .tail(1)
-        .index
-    )
-
-    validation = remaining.loc[validation_indices]
-
-    # Everything before validation/test -> train.
-    train = remaining.drop(index=validation_indices)
+    train = data[
+        rank_from_end >= 2
+    ].copy()
 
     return (
         train.reset_index(drop=True),
         validation.reset_index(drop=True),
         test.reset_index(drop=True),
     )
+
+
+def validate_temporal_split(
+    train: pd.DataFrame,
+    validation: pd.DataFrame,
+    test: pd.DataFrame,
+) -> None:
+    """Validate the main invariants of a leave-last-out split."""
+
+    users = set(train["user_id"])
+
+    if users != set(validation["user_id"]):
+        raise ValueError(
+            "Train and validation user sets do not match"
+        )
+
+    if users != set(test["user_id"]):
+        raise ValueError(
+            "Train and test user sets do not match"
+        )
+
+    if validation.groupby("user_id").size().max() != 1:
+        raise ValueError(
+            "Each user must have exactly one validation interaction"
+        )
+
+    if test.groupby("user_id").size().max() != 1:
+        raise ValueError(
+            "Each user must have exactly one test interaction"
+        )
+
+    train_last = train.groupby("user_id")["timestamp"].max()
+    val_time = validation.set_index("user_id")["timestamp"]
+    test_time = test.set_index("user_id")["timestamp"]
+
+    if not (train_last <= val_time).all():
+        raise ValueError(
+            "Temporal leakage detected between train and validation"
+        )
+
+    if not (val_time <= test_time).all():
+        raise ValueError(
+            "Temporal leakage detected between validation and test"
+        )
