@@ -1,0 +1,16 @@
+dataset:
+  name: amazon_reviews_2023
+  category: Clothing_Shoes_and_Jewelry
+
+paths:
+  raw: data/raw
+  processed: data/processed
+
+columns:
+  user: user_id
+  item: item_id
+  timestamp: timestamp
+
+split:
+  strategy: leave_last_out
+  min_interactions: 3

@@ -1,49 +1,34 @@
 # Python
 __pycache__/
 *.py[cod]
-*.so
-*.egg-info/
-dist/
-build/
+.pytest_cache/
 
 # Virtual environment
 .venv/
+venv/
 
 # IDE
-.idea/
 .vscode/
+.idea/
 
-# Claude
-.claude/
+# Data
+data/raw/*
+data/processed/*
 
-# Data files (datasets, database)
-data/*.db
-data/*.sqlite
-datasets/
+!data/raw/.gitkeep
+!data/processed/.gitkeep
 
-# Models (large binary files, not source)
-models/all-MiniLM-L6-v2/
-models/clip-vit-base-patch32/
-models/paraphrase-MiniLM-L3-v2/
-models/lambdamart_ranker.pkl
+# Models
+models/
+checkpoints/
 
-# Generated reports & evaluation results
-results/
+# Experiments
+mlruns/
+wandb/
 
-# Numpy files
-*.npy
-*.npz
+# Environment variables
+.env
 
-# GitHub config (not needed in source)
-.github/
-
-# Windows
-Thumbs.db
-*.bat
-*.ps1
-
-# macOS
+# OS
 .DS_Store
-
-# Logs
-*.log
+Thumbs.db

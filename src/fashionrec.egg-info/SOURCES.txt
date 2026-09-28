@@ -1,0 +1,17 @@
+README.md
+pyproject.toml
+src/fashionrec/__init__.py
+src/fashionrec.egg-info/PKG-INFO
+src/fashionrec.egg-info/SOURCES.txt
+src/fashionrec.egg-info/dependency_links.txt
+src/fashionrec.egg-info/requires.txt
+src/fashionrec.egg-info/top_level.txt
+src/fashionrec/data/__init__.py
+src/fashionrec/data/split.py
+src/fashionrec/evaluation/__init__.py
+src/fashionrec/features/__init__.py
+src/fashionrec/models/__init__.py
+src/fashionrec/ranking/__init__.py
+src/fashionrec/retrieval/__init__.py
+src/fashionrec/serving/__init__.py
+tests/test_split.py
