@@ -19,7 +19,7 @@ data/processed/*
 !data/processed/.gitkeep
 
 # Models
-models/
+/models/
 checkpoints/
 
 # Experiments
