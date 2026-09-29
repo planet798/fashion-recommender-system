@@ -6,9 +6,10 @@ import torch
 
 class BPRNegativeSampler:
     """
-    Sample items that a user has never interacted with.
+    Vectorized uniform negative sampler.
 
-    One negative item is sampled for every positive interaction.
+    A negative item is an item that the user has not interacted
+    with in the training set.
     """
 
     def __init__(
@@ -19,19 +20,72 @@ class BPRNegativeSampler:
         num_items: int,
         seed: int = 42,
     ):
+        self.num_users = num_users
         self.num_items = num_items
         self.rng = np.random.default_rng(seed)
 
-        self.positive_items = [
-            set()
-            for _ in range(num_users)
-        ]
+        users = (
+            user_indices.detach()
+            .cpu()
+            .numpy()
+            .astype(np.int64, copy=False)
+        )
 
-        for user, item in zip(
-            user_indices.tolist(),
-            item_indices.tolist(),
-        ):
-            self.positive_items[user].add(item)
+        items = (
+            item_indices.detach()
+            .cpu()
+            .numpy()
+            .astype(np.int64, copy=False)
+        )
+
+        # Encode every observed (user, item) pair as one int64:
+        #
+        # key = user * num_items + item
+        #
+        # Sorting these keys lets us check sampled negatives
+        # with vectorized np.searchsorted instead of Python loops.
+        positive_keys = (
+            users * np.int64(num_items)
+            + items
+        )
+
+        self.positive_keys = np.unique(
+            positive_keys
+        )
+
+    def _collision_mask(
+        self,
+        users: np.ndarray,
+        items: np.ndarray,
+    ) -> np.ndarray:
+        candidate_keys = (
+            users * np.int64(self.num_items)
+            + items
+        )
+
+        positions = np.searchsorted(
+            self.positive_keys,
+            candidate_keys,
+        )
+
+        valid_position = (
+            positions
+            < len(self.positive_keys)
+        )
+
+        collisions = np.zeros(
+            len(candidate_keys),
+            dtype=bool,
+        )
+
+        collisions[valid_position] = (
+            self.positive_keys[
+                positions[valid_position]
+            ]
+            == candidate_keys[valid_position]
+        )
+
+        return collisions
 
     def sample(
         self,
@@ -41,33 +95,54 @@ class BPRNegativeSampler:
             users.detach()
             .cpu()
             .numpy()
+            .astype(np.int64, copy=False)
         )
 
-        negatives = np.empty(
-            len(users_np),
+        negatives = self.rng.integers(
+            low=0,
+            high=self.num_items,
+            size=len(users_np),
             dtype=np.int64,
         )
 
-        for index, user in enumerate(users_np):
-            positives = self.positive_items[
-                int(user)
-            ]
+        collisions = self._collision_mask(
+            users_np,
+            negatives,
+        )
 
-            if len(positives) >= self.num_items:
-                raise RuntimeError(
-                    f"User {user} has interacted "
-                    "with every item."
+        # Usually very few collisions because the
+        # user-item matrix is extremely sparse.
+        while collisions.any():
+            count = int(collisions.sum())
+
+            negatives[collisions] = (
+                self.rng.integers(
+                    low=0,
+                    high=self.num_items,
+                    size=count,
+                    dtype=np.int64,
                 )
+            )
 
-            while True:
-                candidate = int(
-                    self.rng.integers(
-                        self.num_items
-                    )
-                )
+            collision_indices = np.flatnonzero(
+                collisions
+            )
 
-                if candidate not in positives:
-                    negatives[index] = candidate
-                    break
+            remaining = self._collision_mask(
+                users_np[collision_indices],
+                negatives[collision_indices],
+            )
 
-        return torch.from_numpy(negatives)
+            new_collisions = np.zeros_like(
+                collisions
+            )
+
+            new_collisions[
+                collision_indices[remaining]
+            ] = True
+
+            collisions = new_collisions
+
+        return torch.from_numpy(
+            negatives
+        )
