@@ -268,7 +268,13 @@ def main():
 
     best_checkpoint_path = (
         checkpoint_dir
-        / f"lightgcn_{args.dataset}_best.pt"
+        / (
+            f"lightgcn_{args.dataset}"
+            f"_dim{args.embedding_dim}"
+            f"_l{args.num_layers}"
+            f"_{args.loss_mode}"
+            f"_best.pt"
+        )
     )
 
     print()
